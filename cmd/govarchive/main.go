@@ -37,7 +37,10 @@ func main() {
 
 func run(args []string, out, diagnostics io.Writer) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: govarchive <capture|verify|diff> [flags]")
+		return fmt.Errorf("usage: govarchive <capture|verify|diff|verify-upgrade> [flags]")
+	}
+	if args[0] == "verify-upgrade" {
+		return verifyUpgrade(args[1:], out, diagnostics)
 	}
 	flags := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	flags.SetOutput(diagnostics)
@@ -159,23 +162,30 @@ func capture(out io.Writer, endpoint string, anchor common.Hash, address common.
 	return writeJSON(out, bundle)
 }
 
-func readSnapshot(path string, anchor common.Hash, address common.Address) (evidence.Snapshot, error) {
+func readBundle(path string, value any) error {
 	file, err := os.Open(path)
 	if err != nil {
-		return evidence.Snapshot{}, err
+		return err
 	}
 	defer file.Close()
 	const maxBundle = 4 << 20
 	data, err := io.ReadAll(io.LimitReader(file, maxBundle+1))
 	if err != nil {
-		return evidence.Snapshot{}, err
+		return err
 	}
 	if len(data) > maxBundle {
-		return evidence.Snapshot{}, fmt.Errorf("%s exceeds the 4 MiB bundle limit", path)
+		return fmt.Errorf("%s exceeds the 4 MiB bundle limit", path)
 	}
+	if err := json.Unmarshal(data, value); err != nil {
+		return fmt.Errorf("%s: %w", path, err)
+	}
+	return nil
+}
+
+func readSnapshot(path string, anchor common.Hash, address common.Address) (evidence.Snapshot, error) {
 	var bundle evidence.Bundle
-	if err := json.Unmarshal(data, &bundle); err != nil {
-		return evidence.Snapshot{}, fmt.Errorf("%s: %w", path, err)
+	if err := readBundle(path, &bundle); err != nil {
+		return evidence.Snapshot{}, err
 	}
 	snapshot, err := bundle.Verify(anchor, address)
 	if err != nil {

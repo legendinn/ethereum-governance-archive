@@ -40,3 +40,18 @@ The proofs were collected from MEV Blocker. Cross-check the hashes with an indep
   -block 0x5caa47372cefc6b87a7b0e2b18d30b9ab9581ff1f9a427bfc3800f63cb1afae2 \
   examples/compound-usdc/control/timelock.json
 ```
+
+## Verify the execution event offline
+
+The [upgrade proof](upgrade-proof.json) includes trie nodes proving the transaction and successful receipt at the same index in block 22,167,542. The verifier derives the transaction hash from the proven bytes and checks the log emitter and indexed implementation address in the proven receipt. The bundle was generated from the full block and receipts returned by MEV Blocker. Both reconstructed trie roots were checked against the block header before generating the bundle.
+
+```sh
+./govarchive verify-upgrade \
+  -block 0xdd782654955f5b0ffb41ab185b43a92e7220d0c07901fb29ee676577956c5a72 \
+  -tx 0xf9df4d7016a592d1135dee34cacae43030c27c3eb69a12281385faa6bd487f56 \
+  -address 0xc3d688b66703497daa19211eedff47f25384cdc3 \
+  -implementation 0x2c045e9a1afb125898d6e736d1ff09fa28788e9d \
+  examples/compound-usdc/upgrade-proof.json
+```
+
+The receipt proves the emission of `Upgraded` by this proxy in the identified transaction. The separate state proofs establish the storage values before and after the block. Internal call paths and the queueing transaction remain independently reproducible via the links and RPC instructions above.

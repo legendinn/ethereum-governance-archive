@@ -10,9 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethdb/memorydb"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/ethereum/go-ethereum/trie"
 )
 
 type StorageProof struct {
@@ -120,12 +118,5 @@ func prove(root common.Hash, key []byte, nodes []hexutil.Bytes) ([]byte, error) 
 		}
 		return nil, nil
 	}
-	db := memorydb.New()
-	defer db.Close()
-	for _, node := range nodes {
-		if err := db.Put(crypto.Keccak256(node), node); err != nil {
-			return nil, err
-		}
-	}
-	return trie.VerifyProof(root, crypto.Keccak256(key), db)
+	return proveTrieValue(root, crypto.Keccak256(key), nodes)
 }
