@@ -3,6 +3,7 @@ package evidence
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -18,6 +19,28 @@ type StorageProof struct {
 	Key   common.Hash     `json:"key"`
 	Value *hexutil.Big    `json:"value"`
 	Proof []hexutil.Bytes `json:"proof"`
+}
+
+// UnmarshalJSON accepts both padded keys and quantity keys returned by RPC providers.
+func (s *StorageProof) UnmarshalJSON(data []byte) error {
+	var wire struct {
+		Key   string          `json:"key"`
+		Value *hexutil.Big    `json:"value"`
+		Proof []hexutil.Bytes `json:"proof"`
+	}
+	if err := json.Unmarshal(data, &wire); err != nil {
+		return err
+	}
+	var key common.Hash
+	if err := key.UnmarshalText([]byte(wire.Key)); err != nil {
+		quantity, quantityErr := hexutil.DecodeBig(wire.Key)
+		if quantityErr != nil {
+			return fmt.Errorf("invalid storage key %q: %w", wire.Key, quantityErr)
+		}
+		key = common.BigToHash(quantity)
+	}
+	*s = StorageProof{Key: key, Value: wire.Value, Proof: wire.Proof}
+	return nil
 }
 
 type AccountProof struct {
