@@ -1,8 +1,11 @@
 # Ethereum Governance Archive
 
-Download and verify historical evidence about Ethereum proxy changes. The first case tracks an implementation change at the Ethereum L1 Standard Bridge proxy for OP Mainnet across blocks 22,182,530 and 22,182,531. The administrator slot has the same value at both blocks.
+Download and verify historical evidence about Ethereum proxy changes. The archive records which implementation changed, how the transaction was authorized, and which claims can be checked offline.
 
-[Read the case study and reproduce the diff](examples/optimism-bridge/README.md).
+| Case | Execution path | Notice |
+| --- | --- | --- |
+| [Optimism L1 Standard Bridge](examples/optimism-bridge/README.md) | A 2-of-2 Safe owned by the Foundation and Security Council Safes | A public proposal preceded execution. The observed execution path has no on-chain timelock. |
+| [Compound III Ethereum USDC](examples/compound-usdc/README.md) | Governor Bravo, Timelock, and CometProxyAdmin | 48-hour on-chain delay. Execution followed queueing by 48 hours and 2 minutes. |
 
 ## Build
 
@@ -22,13 +25,15 @@ Set `ETH_RPC_URL` to an Ethereum execution RPC with historical proof support. Fi
 ./govarchive verify -address "$PROXY" -block "$BLOCK_HASH" snapshot.json
 ```
 
+For account-specific evidence, pass one or more `-slot` flags with full 32-byte storage keys. The verifier reports the authenticated raw storage words, which the case study interprets separately.
+
 To compare two verified snapshots of the same proxy, pass the earlier and later block hashes to `diff` as `-block` and `-next-block`, followed by the two bundle paths.
 
 ## Evidence and trust
 
 A version 1 bundle contains an execution block header, an account proof, and storage proofs with their claimed values. The verifier hashes the header and compares it with the caller's trusted block hash. It verifies the account against the header's state root, then verifies each storage claim against the storage root proven for that account. Bundle contents alone cannot establish whether a block is canonical.
 
-Capture and diff cover the ERC-1967 implementation and administrator slots. The report describes end-of-block storage. Control of an administrator contract, timelock delays, upgrade authorization, and transaction attribution each require additional evidence. The archive currently contains one manually selected case.
+Capture defaults to the ERC-1967 implementation and administrator slots, which are also the slots compared by `diff`. The evidence describes end-of-block storage. The case studies cite transaction receipts or traces for execution paths and document how each protocol interprets its proven storage.
 
 - `cmd/govarchive` contains the CLI, RPC capture, and ERC-1967 comparison.
 - `internal/evidence` contains the versioned bundle format and offline verification.
