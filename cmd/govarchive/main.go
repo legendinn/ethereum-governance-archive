@@ -41,12 +41,21 @@ func run(args []string, out, diagnostics io.Writer) error {
 	}
 	flags := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	flags.SetOutput(diagnostics)
-	addressFlag := flags.String("address", "", "expected proxy address")
+	addressFlag := flags.String("address", "", "expected Ethereum account address")
 	blockFlag := flags.String("block", "", "independently trusted block hash")
 	var rpcFlag, nextBlock *string
+	var requestedSlots []common.Hash
 	switch args[0] {
 	case "capture":
 		rpcFlag = flags.String("rpc", "", "Ethereum RPC URL (defaults to ETH_RPC_URL)")
+		flags.Func("slot", "32-byte storage key to capture (repeatable, defaults to ERC-1967 slots)", func(input string) error {
+			var key common.Hash
+			if err := key.UnmarshalText([]byte(input)); err != nil {
+				return err
+			}
+			requestedSlots = append(requestedSlots, key)
+			return nil
+		})
 	case "diff":
 		nextBlock = flags.String("next-block", "", "second independently trusted block hash")
 	case "verify":
@@ -73,7 +82,7 @@ func run(args []string, out, diagnostics io.Writer) error {
 		if endpoint == "" {
 			endpoint = os.Getenv("ETH_RPC_URL")
 		}
-		return capture(out, endpoint, anchor, address)
+		return capture(out, endpoint, anchor, address, requestedSlots)
 	case "verify":
 		if flags.NArg() != 1 {
 			return fmt.Errorf("verify requires one bundle file")
@@ -96,7 +105,7 @@ func run(args []string, out, diagnostics io.Writer) error {
 	return nil
 }
 
-func capture(out io.Writer, endpoint string, anchor common.Hash, address common.Address) error {
+func capture(out io.Writer, endpoint string, anchor common.Hash, address common.Address, keys []common.Hash) error {
 	if endpoint == "" {
 		return fmt.Errorf("set ETH_RPC_URL or provide -rpc")
 	}
@@ -115,7 +124,17 @@ func capture(out io.Writer, endpoint string, anchor common.Hash, address common.
 		return fmt.Errorf("RPC did not return the requested block")
 	}
 	var account evidence.AccountProof
-	keys := []common.Hash{proxySlots[0].key, proxySlots[1].key}
+	defaultSlots := len(keys) == 0
+	if defaultSlots {
+		keys = []common.Hash{proxySlots[0].key, proxySlots[1].key}
+	}
+	expected := make(map[common.Hash]struct{}, len(keys))
+	for _, key := range keys {
+		if _, duplicate := expected[key]; duplicate {
+			return fmt.Errorf("duplicate requested slot %s", key)
+		}
+		expected[key] = struct{}{}
+	}
 	if err := client.CallContext(ctx, &account, "eth_getProof", address, keys, rpc.BlockNumberOrHashWithHash(anchor, true)); err != nil {
 		return fmt.Errorf("get storage proof: %w", err)
 	}
@@ -124,8 +143,18 @@ func capture(out io.Writer, endpoint string, anchor common.Hash, address common.
 	if err != nil {
 		return err
 	}
-	if _, err := proxyValues(snapshot); err != nil {
-		return err
+	if len(snapshot.Slots) != len(expected) {
+		return fmt.Errorf("RPC proof does not cover the requested slots")
+	}
+	for key := range expected {
+		if _, found := snapshot.Slots[key]; !found {
+			return fmt.Errorf("RPC proof is missing requested slot %s", key)
+		}
+	}
+	if defaultSlots {
+		if _, err := proxyValues(snapshot); err != nil {
+			return err
+		}
 	}
 	return writeJSON(out, bundle)
 }
