@@ -6,6 +6,7 @@ Download and verify historical evidence about Ethereum proxy changes. The archiv
 | --- | --- | --- |
 | [Optimism L1 Standard Bridge](examples/optimism-bridge/README.md) | A 2-of-2 Safe owned by the Foundation and Security Council Safes | A public proposal preceded execution. The observed execution path has no on-chain timelock. |
 | [Compound III Ethereum USDC](examples/compound-usdc/README.md) | Governor Bravo, Timelock, and CometProxyAdmin | 48-hour on-chain delay. Execution followed queueing by 48 hours and 2 minutes. |
+| [Optimism Security Council threshold](examples/optimism-council-threshold/README.md) | Council Safe approval threshold changed from 4 of 13 to 10 of 13 | The governance proposal preceded execution. The case proves the threshold change. |
 
 ## Build
 
@@ -33,7 +34,7 @@ To compare two verified snapshots of the same proxy, pass the earlier and later 
 
 A version 1 bundle contains an execution block header, an account proof, and storage proofs with their claimed values. The verifier hashes the header and compares it with the caller's trusted block hash. It verifies the account against the header's state root, then verifies each storage claim against the storage root proven for that account. Bundle contents alone cannot establish whether a block is canonical.
 
-Capture defaults to the ERC-1967 implementation and administrator slots, which are also the slots compared by `diff`. The evidence describes end-of-block storage. The case studies cite transaction receipts or traces for execution paths and document how each protocol interprets its proven storage.
+Capture defaults to the ERC-1967 implementation and administrator slots, which are also the slots compared by `diff`. The evidence describes end-of-block storage. The case studies document how each protocol interprets its proven storage. For Compound, `verify-upgrade` also verifies the transaction hash and the proxy's `Upgraded` event offline. Execution traces and other referenced receipts can be checked independently.
 
 - `cmd/govarchive` contains the CLI, RPC capture, and ERC-1967 comparison.
 - `internal/evidence` contains the versioned bundle format and offline verification.
