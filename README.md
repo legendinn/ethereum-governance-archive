@@ -1,43 +1,42 @@
 # Ethereum Governance Archive
 
-Download and verify historical evidence about Ethereum proxy changes. The archive records which implementation changed, how the transaction was authorized, and which claims can be checked offline.
+A historical archive for DeFi risk analysts, smart-contract auditors, and governance researchers. It records **what changed, who could authorize it, and how much time users had to react**. Each case includes Ethereum evidence you can verify offline.
 
-| Case | Execution path | Notice |
+## Try the Compound demo
+
+From the repository root, with Go 1.25+ and Python 3 installed:
+
+```sh
+go build -o govarchive ./cmd/govarchive
+./scripts/demo-compound.sh
+```
+
+The CLI verifies that the Compound III USDC proxy emitted `Upgraded` in the named Ethereum transaction. The demo then alters the implementation address in a temporary copy of the receipt proof and confirms that verification fails. You need network access to download Go dependencies on the first build. The demo itself runs offline. [Full case and standalone verification command](examples/compound-usdc/README.md#verify-the-execution-event-offline)
+
+## Browse the archive
+
+| Case | What changed | Governance evidence |
 | --- | --- | --- |
-| [Optimism L1 Standard Bridge](examples/optimism-bridge/README.md) | A 2-of-2 Safe owned by the Foundation and Security Council Safes | A public proposal preceded execution. The observed execution path has no on-chain timelock. |
-| [Compound III Ethereum USDC](examples/compound-usdc/README.md) | Governor Bravo, Timelock, and CometProxyAdmin | 48-hour on-chain delay. Execution followed queueing by 48 hours and 2 minutes. |
-| [Optimism Security Council threshold](examples/optimism-council-threshold/README.md) | Council Safe approval threshold changed from 4 of 13 to 10 of 13 | The governance proposal preceded execution. The case proves the threshold change. |
+| [Compound III · Ethereum USDC](examples/compound-usdc/README.md) | New Comet implementation | Governor Bravo and a 48-hour timelock. Execution followed queueing by 48 hours and 2 minutes. |
+| [Optimism · Upgrade 13](examples/optimism-bridge/README.md) | New L1 bridge implementation | A 2-of-2 Safe owned by the Foundation and the Security Council. The observed execution path had no on-chain timelock. |
+| [Optimism · Upgrade 8](examples/optimism-council-threshold/README.md) | Security Council threshold rose from 4 of 13 to 10 of 13 | Consecutive block proofs record the threshold change. Post-upgrade proofs connect the Council Safe to the bridge’s authorization path. |
 
-## Build
+## Use the CLI
 
-Requires Go 1.25 or later. The first build downloads dependencies. Verification and comparison run offline using the built binary.
+| Command | Purpose | Network |
+| --- | --- | --- |
+| `capture` | Fetch and verify Ethereum storage proofs for a block | Historical Ethereum execution RPC |
+| `verify` | Authenticate storage values against a trusted block hash | Offline |
+| `diff` | Compare implementation and admin slots at two trusted blocks | Offline |
+| `verify-upgrade` | Authenticate a transaction and its proxy’s `Upgraded` event | Offline |
+
+Verification starts with a block hash you trust from an independent source. Proofs authenticate storage and, where supplied, receipt contents against that block. Case studies cite traces, receipts, and contract source for claims about execution and governance. [CLI guide](docs/cli.md) · [Evidence formats and trust model](docs/evidence.md)
+
+## Develop and contribute
 
 ```sh
 go test ./...
-go build -o govarchive ./cmd/govarchive
+go vet ./...
 ```
 
-## Capture another snapshot
-
-Set `ETH_RPC_URL` to an Ethereum execution RPC with historical proof support. Find the expected proxy address and canonical block hash independently. The endpoint must accept an EIP-1898 block hash selector for `eth_getProof`.
-
-```sh
-./govarchive capture -address "$PROXY" -block "$BLOCK_HASH" > snapshot.json
-./govarchive verify -address "$PROXY" -block "$BLOCK_HASH" snapshot.json
-```
-
-For account-specific evidence, pass one or more `-slot` flags with full 32-byte storage keys. The verifier reports the authenticated raw storage words, which the case study interprets separately.
-
-To compare two verified snapshots of the same proxy, pass the earlier and later block hashes to `diff` as `-block` and `-next-block`, followed by the two bundle paths.
-
-## Evidence and trust
-
-A version 1 bundle contains an execution block header, an account proof, and storage proofs with their claimed values. The verifier hashes the header and compares it with the caller's trusted block hash. It verifies the account against the header's state root, then verifies each storage claim against the storage root proven for that account. Bundle contents alone cannot establish whether a block is canonical.
-
-Capture defaults to the ERC-1967 implementation and administrator slots, which are also the slots compared by `diff`. The evidence describes end-of-block storage. The case studies document how each protocol interprets its proven storage. For Compound, `verify-upgrade` also verifies the transaction hash and the proxy's `Upgraded` event offline. Execution traces and other referenced receipts can be checked independently.
-
-- `cmd/govarchive` contains the CLI, RPC capture, and ERC-1967 comparison.
-- `internal/evidence` contains the versioned bundle format and offline verification.
-- `examples` contains case studies, trusted block references to cross-check, and downloadable proof bundles.
-
-[ERC-1967](https://eips.ethereum.org/EIPS/eip-1967) · [Execution API for account and storage proofs](https://ethereum.github.io/execution-apis/api/methods/eth_getProof/)
+Go 1.25+ is required. The CLI lives in [`cmd/govarchive`](cmd/govarchive), proof verification in [`internal/evidence`](internal/evidence), and case studies in [`examples`](examples). [How to contribute a case](CONTRIBUTING.md) · [MIT license](LICENSE)
