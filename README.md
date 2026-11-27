@@ -39,4 +39,15 @@ go test ./...
 go vet ./...
 ```
 
-Go 1.25+ is required. The CLI lives in [`cmd/govarchive`](cmd/govarchive), proof verification in [`internal/evidence`](internal/evidence), and case studies in [`examples`](examples). [How to contribute a case](CONTRIBUTING.md) · [MIT license](LICENSE)
+### Repository layout
+
+| Directory | Responsibility |
+| --- | --- |
+| [`cmd/govarchive`](cmd/govarchive) | CLI flags, bundle files, and ERC-1967 reports |
+| [`internal/ethereumrpc`](internal/ethereumrpc) | Collects storage proofs from Ethereum RPC and checks that they match the request |
+| [`internal/evidence`](internal/evidence) | Verifies storage, transaction, and receipt proofs without a network connection |
+| [`examples`](examples) | Historical case studies and proof fixtures used by the tests |
+
+Only `capture` calls the RPC layer. Both captured and archived files use the same proof verifier. GitHub Actions checks formatting, module files, tests, `go vet`, and the offline demo on Go 1.25.
+
+[How to contribute a case](CONTRIBUTING.md) · [MIT license](LICENSE)

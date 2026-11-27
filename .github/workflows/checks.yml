@@ -1,0 +1,38 @@
+name: Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version: '1.25.x'
+          cache-dependency-path: go.sum
+      - name: Check formatting and module files
+        run: |
+          unformatted=$(gofmt -l cmd internal)
+          if [ -n "$unformatted" ]; then
+            printf '%s\n' "$unformatted"
+            exit 1
+          fi
+          go mod tidy -diff
+      - name: Test and vet
+        run: |
+          go test ./...
+          go vet ./...
+      - name: Run the offline Compound demo
+        run: |
+          go build -o govarchive ./cmd/govarchive
+          ./scripts/demo-compound.sh
