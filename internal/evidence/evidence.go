@@ -1,4 +1,4 @@
-// Package evidence verifies Ethereum storage snapshots against pinned block hashes.
+// Package evidence verifies Ethereum storage snapshots and upgrade receipts against pinned block hashes.
 package evidence
 
 import (
@@ -9,7 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -70,7 +69,7 @@ func (b Bundle) Verify(anchor common.Hash, address common.Address) (Snapshot, er
 	if b.Account.Address != address {
 		return Snapshot{}, fmt.Errorf("bundle does not match expected account")
 	}
-	accountRLP, err := prove(b.Header.Root, address[:], b.Account.Nodes)
+	accountRLP, err := proveStateValue(b.Header.Root, address[:], b.Account.Nodes)
 	if err != nil {
 		return Snapshot{}, fmt.Errorf("account proof: %w", err)
 	}
@@ -90,7 +89,7 @@ func (b Bundle) Verify(anchor common.Hash, address common.Address) (Snapshot, er
 		if _, exists := snapshot.Slots[slot.Key]; exists {
 			return Snapshot{}, fmt.Errorf("duplicate slot %s", slot.Key)
 		}
-		raw, err := prove(account.Root, slot.Key[:], slot.Proof)
+		raw, err := proveStateValue(account.Root, slot.Key[:], slot.Proof)
 		if err != nil {
 			return Snapshot{}, fmt.Errorf("slot %s: %w", slot.Key, err)
 		}
@@ -109,14 +108,4 @@ func (b Bundle) Verify(anchor common.Hash, address common.Address) (Snapshot, er
 		snapshot.Slots[slot.Key] = common.BytesToHash(value)
 	}
 	return snapshot, nil
-}
-
-func prove(root common.Hash, key []byte, nodes []hexutil.Bytes) ([]byte, error) {
-	if root == types.EmptyRootHash {
-		if len(nodes) != 0 {
-			return nil, fmt.Errorf("unexpected proof nodes for empty trie")
-		}
-		return nil, nil
-	}
-	return proveTrieValue(root, crypto.Keccak256(key), nodes)
 }

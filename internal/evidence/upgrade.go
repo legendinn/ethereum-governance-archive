@@ -7,9 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethdb/memorydb"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/ethereum/go-ethereum/trie"
 )
 
 // UpgradeProof binds a transaction and its receipt to the same index in a block.
@@ -63,15 +61,4 @@ func (p UpgradeProof) Verify(block, transaction common.Hash, proxy, implementati
 		}
 	}
 	return fmt.Errorf("receipt does not contain the expected Upgraded event")
-}
-
-func proveTrieValue(root common.Hash, key []byte, nodes []hexutil.Bytes) ([]byte, error) {
-	db := memorydb.New()
-	defer db.Close()
-	for _, node := range nodes {
-		if err := db.Put(crypto.Keccak256(node), node); err != nil {
-			return nil, err
-		}
-	}
-	return trie.VerifyProof(root, key, db)
 }
